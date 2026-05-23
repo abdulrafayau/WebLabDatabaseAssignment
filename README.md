@@ -197,19 +197,14 @@ To use the To-Do List, you need to register first:
 ## 🖼️ Screenshots
 
 ### Home Page
-![Home Page](screenshots/home.png)
+![Home Page](screenshots/a1.png)
+![Student Manager](screenshots/a2.png)
+![pic](screenshots/a3.png)
+![pic](screenshots/a4.png)
+![pic](screenshots/a5.png)
+![pic](screenshots/a6.png)
+![pic](screenshots/a7.png)
 
-### Student Record Manager
-![Student Manager](screenshots/student.png)
-
-### Contact Book
-![Contact Book](screenshots/contact.png)
-
-### To-Do List Manager
-![To-Do List](screenshots/todo.png)
-
-### Product Inventory
-![Product Inventory](screenshots/product.png)
 
 ## 📋 Database Schema
 

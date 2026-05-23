@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List Manager</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="../index.html" class="navbar-brand">📚 Web Lab Database</a>
+            <ul class="navbar-nav">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="student.html">Students</a></li>
+                <li><a href="contact.html">Contacts</a></li>
+                <li><a href="todo.html">To-Do List</a></li>
+                <li><a href="product.html">Products</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="authSection" class="card">
+            <div class="card-header">✅ To-Do List Manager</div>
+            <div class="card-body">
+                <p>Please login or register to manage your to-do list.</p>
+            </div>
+            <div class="grid cols-2">
+                <div class="card">
+                    <div class="card-header">Login</div>
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="loginUsername">Username</label>
+                            <input type="text" id="loginUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Register</div>
+                    <form id="registerForm" onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label for="regUsername">Username</label>
+                            <input type="text" id="regUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regEmail">Email</label>
+                            <input type="email" id="regEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regPassword">Password</label>
+                            <input type="password" id="regPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="width: 100%;">Register</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="todoSection" style="display: none;">
+            <div class="card">
+                <div class="card-header">✅ My To-Do List</div>
+                <div class="card-body">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <p>Welcome, <strong id="userName"></strong>!</p>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="openAddTodoModal()">+ Add Task</button>
+                            <button class="btn btn-secondary" onclick="loadTodos()">🔄 Refresh</button>
+                            <button class="btn btn-danger" onclick="logout()">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div id="todoTableContainer" class="card" style="display: none;">
+                    <div class="card-header">📋 Pending Tasks</div>
+                    <div class="card-body">
+                        <table id="todoTable">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="todoTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="completedContainer" class="card" style="display: none;">
+                    <div class="card-header">✅ Completed Tasks</div>
+                    <div class="card-body">
+                        <ul id="completedList" style="list-style: none; padding: 0;">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="emptyState" class="card" style="text-align: center;">
+                <div class="spinner"></div>
+                <p class="mt-3">Loading tasks...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Todo Modal -->
+    <div id="todoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="todoModalTitle">Add New Task</h2>
+                <button class="modal-close" onclick="closeModal('todoModal')">&times;</button>
+            </div>
+            <form id="todoForm" onsubmit="handleTodoSubmit(event)">
+                <div class="form-group">
+                    <label for="todoTitle">Task Title *</label>
+                    <input type="text" id="todoTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="todoDescription">Description</label>
+                    <textarea id="todoDescription"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="todoDueDate">Due Date *</label>
+                    <input type="date" id="todoDueDate" required>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Task</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('todoModal')">Cancel</button>
+                </div>
+                <input type="hidden" id="todoId">
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        let currentUser = null;
+        let currentEditTodoId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    showTodoSection();
+                    loadTodos();
+                } catch (e) {
+                    logout();
+                }
+            }
+        });
+
+        async function handleRegister(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+
+            if (!Validator.validateRequired(username)) {
+                Notification.warning('Username is required');
+                return;
+            }
+
+            if (!Validator.validateEmail(email)) {
+                Notification.warning('Please enter a valid email');
+                return;
+            }
+
+            if (password.length < 6) {
+                Notification.warning('Password must be at least 6 characters');
+                return;
+            }
+
+            try {
+                await ApiHelper.post('/users/register', { username, email, password });
+                Notification.success('Registration successful! Please login.');
+                document.getElementById('registerForm').reset();
+            } catch (error) {
+                Notification.error('Registration failed: ' + error.message);
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!Validator.validateRequired(username) || !Validator.validateRequired(password)) {
+                Notification.warning('Username and password are required');
+                return;
+            }
+
+            try {
+                const user = await ApiHelper.post('/users/login', { username, password });
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                Notification.success('Login successful!');
+                showTodoSection();
+                loadTodos();
+            } catch (error) {
+                Notification.error('Login failed: ' + error.message);
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                currentUser = null;
+                localStorage.removeItem('currentUser');
+                document.getElementById('registerForm').reset();
+                document.getElementById('loginForm').reset();
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('todoSection').style.display = 'none';
+                Notification.success('Logged out successfully!');
+            }
+        }
+
+        function showTodoSection() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('todoSection').style.display = 'block';
+            document.getElementById('userName').textContent = currentUser.username;
+        }
+
+        async function loadTodos() {
+            if (!currentUser) return;
+
+            try {
+                showLoading(true);
+                const user = await ApiHelper.get(`/users/${currentUser.id}`);
+                const todos = user.todoItems || [];
+                
+                const pending = todos.filter(t => !t.isCompleted);
+                const completed = todos.filter(t => t.isCompleted);
+
+                if (pending.length === 0 && completed.length === 0) {
+                    document.getElementById('todoTableContainer').style.display = 'none';
+                    document.getElementById('completedContainer').style.display = 'none';
+                    document.getElementById('emptyState').innerHTML = '<p style="padding: 2rem;">No tasks yet. Click "Add Task" to create one.</p>';
+                } else {
+                    if (pending.length > 0) {
+                        displayPendingTodos(pending);
+                        document.getElementById('todoTableContainer').style.display = 'block';
+                    } else {
+                        document.getElementById('todoTableContainer').style.display = 'none';
+                    }
+
+                    if (completed.length > 0) {
+                        displayCompletedTodos(completed);
+                        document.getElementById('completedContainer').style.display = 'block';
+                    } else {
+                        document.getElementById('completedContainer').style.display = 'none';
+                    }
+
+                    document.getElementById('emptyState').style.display = 'none';
+                }
+            } catch (error) {
+                Notification.error('Failed to load tasks: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayPendingTodos(todos) {
+            const tbody = document.getElementById('todoTableBody');
+            tbody.innerHTML = '';
+
+            todos.forEach(todo => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${todo.title}</strong><br><small>${todo.description || ''}</small></td>
+                    <td>${formatDate(todo.dueDate)}</td>
+                    <td><span class="badge badge-warning">Pending</span></td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-success btn-sm" onclick="completeTodo(${todo.id})">✓ Complete</button>
+                            <button class="btn btn-info btn-sm" onclick="editTodo(${todo.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteTodo(${todo.id})">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function displayCompletedTodos(todos) {
+            const list = document.getElementById('completedList');
+            list.innerHTML = '';
+
+            todos.forEach(todo => {
+                const li = document.createElement('li');
+                li.style.padding = '0.75rem';
+                li.style.borderBottom = '1px solid #eee';
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="text-decoration: line-through; color: #999;">${todo.title}</strong><br>
+                            <small style="color: #bbb;">Due: ${formatDate(todo.dueDate)}</small>
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTodo(${todo.id})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function openAddTodoModal() {
+            currentEditTodoId = null;
+            resetForm('todoForm');
+            document.getElementById('todoModalTitle').textContent = 'Add New Task';
+            Modal.show('todoModal');
+        }
+
+        async function editTodo(id) {
+            try {
+                const todo = await ApiHelper.get(`/todoitems/${id}`);
+                document.getElementById('todoId').value = todo.id;
+                document.getElementById('todoTitle').value = todo.title;
+                document.getElementById('todoDescription').value = todo.description || '';
+                document.getElementById('todoDueDate').value = todo.dueDate ? todo.dueDate.split('T')[0] : '';
+                
+                currentEditTodoId = id;
+                document.getElementById('todoModalTitle').textContent = 'Edit Task';
+                Modal.show('todoModal');
+            } catch (error) {
+                Notification.error('Failed to load task: ' + error.message);
+            }
+        }
+
+        async function completeTodo(id) {
+            try {
+                await ApiHelper.put(`/todoitems/${id}`, { isCompleted: true });
+                Notification.success('Task marked as complete!');
+                loadTodos();
+            } catch (error) {
+                Notification.error('Failed to update task: ' + error.message);
+            }
+        }
+
+        async function deleteTodo(id) {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+
+            try {
+                await ApiHelper.delete(`/todoitems/${id}`);
+                Notification.success('Task deleted successfully!');
+                loadTodos();
+            } catch (error) {
+                Notification.error('Failed to delete task: ' + error.message);
+            }
+        }
+
+        async function handleTodoSubmit(event) {
+            event.preventDefault();
+
+            const title = document.getElementById('todoTitle').value.trim();
+            const dueDate = document.getElementById('todoDueDate').value;
+
+            if (!Validator.validateRequired(title)) {
+                Notification.warning('Task title is required');
+                return;
+            }
+
+            if (!Validator.validateDate(dueDate)) {
+                Notification.warning('Please enter a valid due date');
+                return;
+            }
+
+            const todoData = {
+                userId: currentUser.id,
+                title,
+                description: document.getElementById('todoDescription').value.trim(),
+                dueDate
+            };
+
+            try {
+                if (currentEditTodoId) {
+                    await ApiHelper.put(`/todoitems/${currentEditTodoId}`, todoData);
+                    Notification.success('Task updated successfully!');
+                } else {
+                    await ApiHelper.post('/todoitems', todoData);
+                    Notification.success('Task added successfully!');
+                }
+                Modal.hide('todoModal');
+                loadTodos();
+            } catch (error) {
+                Notification.error('Error saving task: ' + error.message);
+            }
+        }
+
+        function closeModal(modalId) {
+            Modal.hide(modalId);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Book</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="../index.html" class="navbar-brand">📚 Web Lab Database</a>
+            <ul class="navbar-nav">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="student.html">Students</a></li>
+                <li><a href="contact.html">Contacts</a></li>
+                <li><a href="todo.html">To-Do List</a></li>
+                <li><a href="product.html">Products</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">📇 Contact Book</div>
+            <div class="card-body">
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="openAddModal()">+ Add New Contact</button>
+                    <button class="btn btn-secondary" onclick="loadContacts()">🔄 Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="contactTableContainer" class="card" style="display: none;">
+            <div class="card-header">All Contacts</div>
+            <div class="card-body">
+                <div style="overflow-x: auto;">
+                    <table id="contactTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>City</th>
+                                <th>Country</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="emptyState" class="card" style="text-align: center;">
+            <div class="spinner"></div>
+            <p class="mt-3">Loading contacts...</p>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Contact</h2>
+                <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
+            </div>
+            <form id="contactForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="firstName">First Name *</label>
+                    <input type="text" id="firstName" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number</label>
+                    <input type="tel" id="phoneNumber">
+                </div>
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <textarea id="address" placeholder="Street address"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city">
+                </div>
+                <div class="form-group">
+                    <label for="country">Country</label>
+                    <input type="text" id="country">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Contact</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('contactModal')">Cancel</button>
+                </div>
+                <input type="hidden" id="contactId">
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        let currentEditId = null;
+
+        document.addEventListener('DOMContentLoaded', loadContacts);
+
+        async function loadContacts() {
+            try {
+                showLoading(true);
+                const contacts = await ApiHelper.get('/contacts');
+                
+                if (contacts.length === 0) {
+                    document.getElementById('contactTableContainer').style.display = 'none';
+                    document.getElementById('emptyState').innerHTML = '<p style="padding: 2rem;">No contacts found. Click "Add New Contact" to create one.</p>';
+                } else {
+                    displayContacts(contacts);
+                    document.getElementById('contactTableContainer').style.display = 'block';
+                    document.getElementById('emptyState').style.display = 'none';
+                }
+            } catch (error) {
+                Notification.error('Failed to load contacts: ' + error.message);
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayContacts(contacts) {
+            const tbody = document.getElementById('contactTableBody');
+            tbody.innerHTML = '';
+
+            contacts.forEach(contact => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${contact.firstName} ${contact.lastName}</strong></td>
+                    <td>${contact.email}</td>
+                    <td>${contact.phoneNumber || '-'}</td>
+                    <td>${contact.city || '-'}</td>
+                    <td>${contact.country || '-'}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-info btn-sm" onclick="editContact(${contact.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteContact(${contact.id})">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function openAddModal() {
+            currentEditId = null;
+            resetForm('contactForm');
+            document.getElementById('modalTitle').textContent = 'Add New Contact';
+            Modal.show('contactModal');
+        }
+
+        async function editContact(id) {
+            try {
+                const contact = await ApiHelper.get(`/contacts/${id}`);
+                document.getElementById('contactId').value = contact.id;
+                document.getElementById('firstName').value = contact.firstName;
+                document.getElementById('lastName').value = contact.lastName || '';
+                document.getElementById('email').value = contact.email;
+                document.getElementById('phoneNumber').value = contact.phoneNumber || '';
+                document.getElementById('address').value = contact.address || '';
+                document.getElementById('city').value = contact.city || '';
+                document.getElementById('country').value = contact.country || '';
+                
+                currentEditId = id;
+                document.getElementById('modalTitle').textContent = 'Edit Contact';
+                Modal.show('contactModal');
+            } catch (error) {
+                Notification.error('Failed to load contact: ' + error.message);
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('Are you sure you want to delete this contact?')) return;
+
+            try {
+                await ApiHelper.delete(`/contacts/${id}`);
+                Notification.success('Contact deleted successfully!');
+                loadContacts();
+            } catch (error) {
+                Notification.error('Failed to delete contact: ' + error.message);
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            // Validation
+            const firstName = document.getElementById('firstName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phoneNumber').value.trim();
+
+            if (!Validator.validateRequired(firstName)) {
+                Notification.warning('First Name is required');
+                return;
+            }
+
+            if (!Validator.validateEmail(email)) {
+                Notification.warning('Please enter a valid email');
+                return;
+            }
+
+            if (phone && !Validator.validatePhone(phone)) {
+                Notification.warning('Please enter a valid phone number');
+                return;
+            }
+
+            const contactData = {
+                firstName,
+                lastName: document.getElementById('lastName').value.trim(),
+                email,
+                phoneNumber: phone,
+                address: document.getElementById('address').value.trim(),
+                city: document.getElementById('city').value.trim(),
+                country: document.getElementById('country').value.trim()
+            };
+
+            try {
+                if (currentEditId) {
+                    contactData.id = currentEditId;
+                    await ApiHelper.put(`/contacts/${currentEditId}`, contactData);
+                    Notification.success('Contact updated successfully!');
+                } else {
+                    await ApiHelper.post('/contacts', contactData);
+                    Notification.success('Contact added successfully!');
+                }
+                Modal.hide('contactModal');
+                loadContacts();
+            } catch (error) {
+                Notification.error('Error saving contact: ' + error.message);
+            }
+        }
+
+        function closeModal(modalId) {
+            Modal.hide(modalId);
+        }
+    </script>
+</body>
+</html>

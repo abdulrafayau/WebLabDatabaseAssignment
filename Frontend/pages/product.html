@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Inventory Manager</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="../index.html" class="navbar-brand">📚 Web Lab Database</a>
+            <ul class="navbar-nav">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="student.html">Students</a></li>
+                <li><a href="contact.html">Contacts</a></li>
+                <li><a href="todo.html">To-Do List</a></li>
+                <li><a href="product.html">Products</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">📦 Product Inventory Manager</div>
+            <div class="card-body">
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="openAddModal()">+ Add New Product</button>
+                    <button class="btn btn-secondary" onclick="loadProducts()">🔄 Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="productTableContainer" class="card" style="display: none;">
+            <div class="card-header">All Products</div>
+            <div class="card-body">
+                <div style="overflow-x: auto;">
+                    <table id="productTable">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Supplier</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="emptyState" class="card" style="text-align: center;">
+            <div class="spinner"></div>
+            <p class="mt-3">Loading products...</p>
+        </div>
+
+        <div id="inventoryStats" class="card" style="display: none; margin-top: 2rem;">
+            <div class="card-header">📊 Inventory Statistics</div>
+            <div class="card-body">
+                <div class="grid">
+                    <div style="text-align: center; padding: 1.5rem; background: var(--light-color); border-radius: var(--border-radius);">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="totalProducts">0</div>
+                        <div style="color: var(--secondary-color);">Total Products</div>
+                    </div>
+                    <div style="text-align: center; padding: 1.5rem; background: var(--light-color); border-radius: var(--border-radius);">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="totalValue">$0</div>
+                        <div style="color: var(--secondary-color);">Inventory Value</div>
+                    </div>
+                    <div style="text-align: center; padding: 1.5rem; background: var(--light-color); border-radius: var(--border-radius);">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);" id="totalStock">0</div>
+                        <div style="color: var(--secondary-color);">Total Units in Stock</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Product</h2>
+                <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
+            </div>
+            <form id="productForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="productName">Product Name *</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="sku">SKU *</label>
+                    <input type="text" id="sku" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price (USD) *</label>
+                    <input type="number" id="price" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity in Stock *</label>
+                    <input type="number" id="quantity" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category">
+                        <option value="">Select Category</option>
+                        <option value="Electronics">Electronics</option>
+                        <option value="Clothing">Clothing</option>
+                        <option value="Books">Books</option>
+                        <option value="Home & Garden">Home & Garden</option>
+                        <option value="Sports">Sports</option>
+                        <option value="Food & Beverage">Food & Beverage</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="supplier">Supplier</label>
+                    <input type="text" id="supplier">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Product</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('productModal')">Cancel</button>
+                </div>
+                <input type="hidden" id="productId">
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        let currentEditId = null;
+        let allProducts = [];
+
+        document.addEventListener('DOMContentLoaded', loadProducts);
+
+        async function loadProducts() {
+            try {
+                showLoading(true);
+                allProducts = await ApiHelper.get('/products');
+                
+                if (allProducts.length === 0) {
+                    document.getElementById('productTableContainer').style.display = 'none';
+                    document.getElementById('inventoryStats').style.display = 'none';
+                    document.getElementById('emptyState').innerHTML = '<p style="padding: 2rem;">No products found. Click "Add New Product" to create one.</p>';
+                } else {
+                    displayProducts(allProducts);
+                    displayStats();
+                    document.getElementById('productTableContainer').style.display = 'block';
+                    document.getElementById('inventoryStats').style.display = 'block';
+                    document.getElementById('emptyState').style.display = 'none';
+                }
+            } catch (error) {
+                Notification.error('Failed to load products: ' + error.message);
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayProducts(products) {
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = '';
+
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${product.productName}</strong></td>
+                    <td>${product.sku}</td>
+                    <td>${product.category || '-'}</td>
+                    <td>${formatCurrency(product.price)}</td>
+                    <td>
+                        <span class="badge ${product.quantityInStock > 10 ? 'badge-success' : product.quantityInStock > 0 ? 'badge-warning' : 'badge-danger'}">
+                            ${product.quantityInStock} units
+                        </span>
+                    </td>
+                    <td>${product.supplier || '-'}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-info btn-sm" onclick="editProduct(${product.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteProduct(${product.id})">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function displayStats() {
+            const totalProducts = allProducts.length;
+            const totalValue = allProducts.reduce((sum, p) => sum + (p.price * p.quantityInStock), 0);
+            const totalStock = allProducts.reduce((sum, p) => sum + p.quantityInStock, 0);
+
+            document.getElementById('totalProducts').textContent = totalProducts;
+            document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+            document.getElementById('totalStock').textContent = totalStock;
+        }
+
+        function openAddModal() {
+            currentEditId = null;
+            resetForm('productForm');
+            document.getElementById('modalTitle').textContent = 'Add New Product';
+            Modal.show('productModal');
+        }
+
+        async function editProduct(id) {
+            try {
+                const product = await ApiHelper.get(`/products/${id}`);
+                document.getElementById('productId').value = product.id;
+                document.getElementById('productName').value = product.productName;
+                document.getElementById('sku').value = product.sku;
+                document.getElementById('description').value = product.description || '';
+                document.getElementById('price').value = product.price;
+                document.getElementById('quantity').value = product.quantityInStock;
+                document.getElementById('category').value = product.category || '';
+                document.getElementById('supplier').value = product.supplier || '';
+                
+                currentEditId = id;
+                document.getElementById('modalTitle').textContent = 'Edit Product';
+                Modal.show('productModal');
+            } catch (error) {
+                Notification.error('Failed to load product: ' + error.message);
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Are you sure you want to delete this product?')) return;
+
+            try {
+                await ApiHelper.delete(`/products/${id}`);
+                Notification.success('Product deleted successfully!');
+                loadProducts();
+            } catch (error) {
+                Notification.error('Failed to delete product: ' + error.message);
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            // Validation
+            const productName = document.getElementById('productName').value.trim();
+            const sku = document.getElementById('sku').value.trim();
+            const price = parseFloat(document.getElementById('price').value);
+            const quantity = parseInt(document.getElementById('quantity').value);
+
+            if (!Validator.validateRequired(productName)) {
+                Notification.warning('Product name is required');
+                return;
+            }
+
+            if (!Validator.validateRequired(sku)) {
+                Notification.warning('SKU is required');
+                return;
+            }
+
+            if (!Validator.validateNumber(price) || price < 0) {
+                Notification.warning('Please enter a valid price');
+                return;
+            }
+
+            if (!Validator.validateNumber(quantity) || quantity < 0) {
+                Notification.warning('Please enter a valid quantity');
+                return;
+            }
+
+            const productData = {
+                productName,
+                sku,
+                description: document.getElementById('description').value.trim(),
+                price,
+                quantityInStock: quantity,
+                category: document.getElementById('category').value,
+                supplier: document.getElementById('supplier').value.trim()
+            };
+
+            try {
+                if (currentEditId) {
+                    productData.id = currentEditId;
+                    await ApiHelper.put(`/products/${currentEditId}`, productData);
+                    Notification.success('Product updated successfully!');
+                } else {
+                    await ApiHelper.post('/products', productData);
+                    Notification.success('Product added successfully!');
+                }
+                Modal.hide('productModal');
+                loadProducts();
+            } catch (error) {
+                Notification.error('Error saving product: ' + error.message);
+            }
+        }
+
+        function closeModal(modalId) {
+            Modal.hide(modalId);
+        }
+    </script>
+</body>
+</html>
